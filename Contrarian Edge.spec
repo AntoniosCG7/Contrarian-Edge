@@ -2,17 +2,17 @@
 
 
 a = Analysis(
-    ['vix_vix3m_app.py'],
+    ['contrarian_edge.py'],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['PIL._tkinter_finder'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['test', 'unittest', 'PyQt5', 'PyQt6', 'IPython', 'jupyter', 'notebook'],
     noarchive=False,
-    optimize=0,
+    optimize=1,
 )
 pyz = PYZ(a.pure)
 
