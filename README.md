@@ -14,11 +14,19 @@ Contrarian Edge generates actionable BUY or WAIT signals by detecting periods of
 
 ## Key Features
 
+### Dual-Metric Signal System
+
+- **Entry Score (0-100)**: Measures raw contrarian setup strength
+- **Confidence (0-100%)**: Measures signal alignment and consistency
+- **18 Intelligent Messages**: Nuanced guidance based on Entry Score vs Confidence alignment
+- **Smart Decision Making**: Identifies conflicting signals vs strong alignment scenarios
+
 ### Real-Time Market Intelligence
 
 - Live VIX, VIX3M, and S&P 500 monitoring with percentage/absolute change tracking
 - 60-day VIX/VIX3M ratio trend visualization
 - Visual progress bar showing current fear levels relative to historical ranges
+- Enhanced signal breakdown with confidence indicators
 
 ### Technical Indicators
 
@@ -26,16 +34,23 @@ Contrarian Edge generates actionable BUY or WAIT signals by detecting periods of
 - **MACD**: Trend momentum with bullish/bearish crossover detection
 - **200-Day MA**: Long-term trend validation and market regime identification
 
-### Long-Only Signal System
+### Signal System
 
-Four signal states based on weighted scoring (0-100):
+**Dual-metric approach** with separate Entry Score and Confidence analysis:
 
-| Signal            | Score  | Criteria                 | Interpretation                               | Action              |
-| ----------------- | ------ | ------------------------ | -------------------------------------------- | ------------------- |
-| ✅ **STRONG BUY** | 85-100 | 3-4 entry signals active | Extreme fear + strong technical confirmation | **Buy S&P 500 ETF** |
-| 🟢 **BUY**        | 65-84  | 2+ entry signals active  | Elevated fear + favorable technical setup    | **Buy S&P 500 ETF** |
-| ⚪ **WATCH**      | 40-64  | 1-2 signals              | Moderate conditions—monitor for development  | Monitor             |
-| ⚫ **WAIT**       | 0-39   | 0-1 signals              | Insufficient entry signals—patience required | Wait                |
+| Signal              | Entry Score | Confidence | Criteria                    | Interpretation                               | Action                  |
+| ------------------- | ----------- | ---------- | --------------------------- | -------------------------------------------- | ----------------------- |
+| ✅ **STRONG BUY**   | 85-100      | 70%+       | 3-4 entry signals active    | Extreme fear + strong technical confirmation | **Buy S&P 500 ETF**     |
+| 🟢 **BUY**          | 65-84       | 60%+       | 2+ entry signals active     | Elevated fear + favorable technical setup    | **Buy S&P 500 ETF**     |
+| 🟡 **MODERATE BUY** | 50-64       | 70%+       | 2+ signals + high alignment | Lower score but excellent signal alignment   | **Partial S&P 500 ETF** |
+| ⚪ **WATCH**        | 40-64       | 50%+       | 1-2 signals                 | Moderate conditions—monitor for development  | Monitor                 |
+| ⚫ **WAIT**         | 0-39        | <50%       | 0-1 signals                 | Insufficient entry signals—patience required | Wait                    |
+
+#### Entry Score vs Confidence Separation
+
+- **Entry Score (0-100)**: Measures raw contrarian setup strength
+- **Confidence (0-100%)**: Measures signal alignment and consistency
+- **Smart Decision Making**: High score + low confidence = conflicting signals, wait for clarity
 
 #### Entry Signal Components (X/4 Active)
 
@@ -97,10 +112,28 @@ Four signal states based on weighted scoring (0-100):
 
 ### Example Scenarios
 
-**✅ STRONG BUY (90/100):** Ratio 1.12 + RSI 28 + MACD Bullish + Above MA200 → 4/4 signals active → **Buy SPY/VOO**  
-**🟢 BUY (75/100):** Ratio 1.06 + RSI 38 + MACD Neutral + Above MA200 → 3/4 signals active → **Buy SPY/VOO**  
-**⚪ WATCH (50/100):** Ratio 0.97 + RSI 45 + MACD Bullish + Above MA200 → 2/4 signals active → Monitor  
-**⚫ WAIT (20/100):** Ratio 0.88 + RSI 72 + MACD Bearish + Above MA200 → 1/4 signals active → Wait
+**✅ STRONG BUY (Entry: 90/100, Confidence: 85%):** Ratio 1.12 + RSI 28 + MACD Bullish + Above MA200 → 4/4 signals active → **"EXTREME FEAR + MAXIMUM CONFIDENCE - All signals aligned perfectly. Maximum allocation recommended."**
+
+**🟢 BUY (Entry: 75/100, Confidence: 70%):** Ratio 1.06 + RSI 38 + MACD Neutral + Above MA200 → 3/4 signals active → **"ELEVATED FEAR + GOOD CONFIRMATION - Strong entry opportunity with solid technical backing."**
+
+**🟡 MODERATE BUY (Entry: 55/100, Confidence: 80%):** Ratio 1.02 + RSI 42 + MACD Bullish + Above MA200 → 2/4 signals active → **"MODERATE SCORE + HIGH CONFIDENCE - Lower entry score but excellent signal alignment. Conservative entry with room to add on weakness."**
+
+**⚪ WATCH (Entry: 45/100, Confidence: 75%):** Ratio 0.97 + RSI 45 + MACD Bullish + Above MA200 → 2/4 signals active → **"LOW SCORE + HIGH CONFIDENCE - Strong signal alignment but insufficient contrarian setup. Wait for fear levels to increase."**
+
+**⚫ WAIT (Entry: 25/100, Confidence: 40%):** Ratio 0.88 + RSI 72 + MACD Bearish + Above MA200 → 1/4 signals active → **"INSUFFICIENT SETUP + MODERATE ALIGNMENT - Some signals present but insufficient for entry. Wait for better contrarian setup."**
+
+### Intelligent Signal Messages
+
+The system provides **18 different nuanced messages** based on Entry Score vs Confidence alignment:
+
+#### Decision-Making Scenarios
+
+| Entry Score | Confidence | Signal       | Message Example                                                                                                                         |
+| ----------- | ---------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **85/100**  | **45%**    | WATCH        | "HIGH SCORE + MODERATE CONFIDENCE - Strong setup but some conflicting signals. Consider smaller position size."                         |
+| **55/100**  | **85%**    | MODERATE BUY | "MODERATE SCORE + HIGH CONFIDENCE - Lower entry score but excellent signal alignment. Conservative entry with room to add on weakness." |
+| **90/100**  | **80%**    | STRONG BUY   | "EXTREME FEAR + MAXIMUM CONFIDENCE - All signals aligned perfectly. Maximum allocation recommended."                                    |
+| **45/100**  | **75%**    | WATCH        | "LOW SCORE + HIGH CONFIDENCE - Strong signal alignment but insufficient contrarian setup. Wait for fear levels to increase."            |
 
 ### Example Trade Scenario
 
