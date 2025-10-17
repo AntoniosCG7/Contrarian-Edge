@@ -26,7 +26,7 @@ class ContrarianEdgeApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Contrarian Edge - Market Intelligence Dashboard")
+        self.title("Contrarian Edge")
         self.geometry("900x930")
         self.minsize(900, 930)
 
@@ -53,7 +53,7 @@ class ContrarianEdgeApp(ctk.CTk):
 
         self.subtitle = ctk.CTkLabel(
             self.main_container,
-            text="Volatility-Based Long Entry Signal System",
+            text="S&P 500 Long Entry Signal System",
             font=ctk.CTkFont(family="Bahnschrift", size=14),
         )
 
@@ -215,7 +215,7 @@ class ContrarianEdgeApp(ctk.CTk):
 
         self.spy_description = ctk.CTkLabel(
             self.spy_frame,
-            text="Market reference",
+            text="Target for long positions",
             font=ctk.CTkFont(family="Bahnschrift", size=13),
             text_color=("#6b7280", "#9ca3af"),
         )
@@ -512,7 +512,7 @@ class ContrarianEdgeApp(ctk.CTk):
 
         self.signal_description = ctk.CTkLabel(
             self.signal_frame,
-            text="Market conditions suggest a moderate buying opportunity. Monitor for confirmation.",
+            text="Consider buying S&P 500 ETFs (SPY, VOO, IVV) when conditions align.",
             font=ctk.CTkFont(family="Bahnschrift", size=13, weight="bold"),
             wraplength=1000,
         )
@@ -1355,10 +1355,10 @@ class ContrarianEdgeApp(ctk.CTk):
                 pass
 
             signal_descriptions = {
-                "STRONG BUY": "Extreme fear detected with strong technical confirmation. Prime contrarian entry opportunity.",
-                "BUY": "Elevated fear with favorable technical setup. Good long entry opportunity.",
-                "WATCH": "Moderate conditions. Monitor for stronger entry signals to develop.",
-                "WAIT": "Insufficient fear/technical confirmation. Wait for better long entry opportunity.",
+                "STRONG BUY": "Extreme fear detected with strong technical confirmation. Prime S&P 500 ETF entry opportunity.",
+                "BUY": "Elevated fear with favorable technical setup. Good S&P 500 ETF entry opportunity.",
+                "WATCH": "Moderate conditions. Monitor for stronger S&P 500 entry signals to develop.",
+                "WAIT": "Insufficient fear/technical confirmation. Wait for better S&P 500 entry opportunity.",
             }
             self.signal_description.configure(
                 text=signal_descriptions.get(
