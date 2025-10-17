@@ -735,84 +735,136 @@ class ContrarianEdgeApp(ctk.CTk):
 
         return validation_passed
 
-    def calculate_signal_strength(self, ratio, rsi, macd_crossover, above_ma200):
-        score = 0
+    def calculate_enhanced_signal(
+        self, ratio, vix_price, rsi, macd_crossover, above_ma200, spy_price, ma200_value
+    ):
+
+        entry_score = 0
         signals = []
         entry_signals = 0
 
         if ratio >= 1.10:
-            score += 40
+            entry_score += 40
             entry_signals += 1
-            signals.append("[ENTRY] Extreme Fear - Prime Entry")
+            signals.append("[ENTRY] Extreme fear - Prime contrarian setup")
         elif ratio >= 1.05:
-            score += 35
+            entry_score += 35
             entry_signals += 1
-            signals.append("[ENTRY] High Fear - Strong Entry")
+            signals.append("[ENTRY] High fear - Strong entry signal")
         elif ratio >= 1.00:
-            score += 25
+            entry_score += 25
             entry_signals += 1
-            signals.append("[ENTRY] Elevated Fear - Entry Signal")
+            signals.append("[ENTRY] Elevated fear - Entry signal")
         elif ratio >= 0.95:
-            score += 10
-            signals.append("[WATCH] Neutral - Monitor")
+            entry_score += 10
+            signals.append("[WATCH] Neutral fear levels")
         else:
-            score += 0
-            signals.append("[WAIT] Low Fear - No Entry Signal")
+            entry_score += 0
+            signals.append("[WAIT] Low fear - No contrarian edge")
 
         if rsi is not None:
             if rsi < 30:
-                score += 30
+                entry_score += 30
                 entry_signals += 1
-                signals.append("[ENTRY] RSI Oversold - Strong Entry")
+                signals.append("[ENTRY] RSI Oversold - Strong entry")
             elif rsi < 40:
-                score += 20
+                entry_score += 20
                 entry_signals += 1
-                signals.append("[ENTRY] RSI Approaching Oversold")
+                signals.append("[ENTRY] RSI Approaching oversold")
             elif rsi < 50:
-                score += 10
-                signals.append("[WATCH] RSI Neutral-Low")
+                entry_score += 10
+                signals.append("[WATCH] RSI Neutral-low")
             elif rsi < 70:
-                score += 5
-                signals.append("[WATCH] RSI Neutral-High")
+                entry_score += 5
+                signals.append("[WATCH] RSI Neutral-high")
             else:
-                score += 0
+                entry_score += 0
                 signals.append("[WAIT] RSI Overbought - Wait")
 
         if macd_crossover == "bullish":
-            score += 20
+            entry_score += 20
             entry_signals += 1
-            signals.append("[ENTRY] MACD Bullish - Momentum Confirmed")
+            signals.append("[ENTRY] MACD Bullish - Momentum confirmed")
         elif macd_crossover == "neutral":
-            score += 5
+            entry_score += 5
             signals.append("[WATCH] MACD Neutral")
         else:
-            score += 0
-            signals.append("[WAIT] MACD Bearish - Wait for Turn")
+            entry_score += 0
+            signals.append("[WAIT] MACD Bearish - Wait for turn")
 
         if above_ma200:
-            score += 20
+            entry_score += 20
             entry_signals += 1
-            signals.append("[ENTRY] Above 200-MA - Bull Trend")
+            signals.append("[ENTRY] Above 200-MA - Bull trend")
         else:
-            score += 5
+            entry_score += 5
             signals.append("[WATCH] Below 200-MA - Caution")
 
-        score = max(0, min(100, score))
+        entry_score = max(0, min(100, entry_score))
 
-        if score >= 85 and entry_signals >= 3:
+        confidence = 50
+
+        if ratio >= 1.10:
+            confidence += 20
+        elif ratio >= 1.00:
+            confidence += 10
+        elif ratio >= 0.95:
+            confidence += 5
+        else:
+            confidence -= 5
+
+        if rsi is not None:
+            if rsi < 30:
+                confidence += 20
+            elif rsi < 40:
+                confidence += 15
+            elif rsi < 50:
+                confidence += 5
+            elif rsi < 70:
+                confidence += 0
+            else:
+                confidence -= 10
+
+        if macd_crossover == "bullish":
+            confidence += 15
+        elif macd_crossover == "neutral":
+            confidence += 5
+        else:
+            confidence -= 5
+
+        if above_ma200:
+            confidence += 15
+        else:
+            confidence -= 10
+
+        if entry_signals >= 3:
+            confidence += 20
+        elif entry_signals >= 2:
+            confidence += 10
+        elif entry_signals >= 1:
+            confidence += 5
+        else:
+            confidence -= 15
+
+        confidence = max(0, min(100, confidence))
+
+        if entry_score >= 85 and entry_signals >= 3 and confidence >= 70:
             action = "STRONG BUY"
             color = "#22c55e"
-        elif score >= 65 and entry_signals >= 2:
+        elif entry_score >= 65 and entry_signals >= 2 and confidence >= 60:
             action = "BUY"
             color = "#22c55e"
-        elif score >= 40:
+        elif entry_score >= 50 and confidence >= 70:
+            action = "MODERATE BUY"
+            color = "#84cc16"
+        elif entry_score >= 40 or confidence >= 50:
             action = "WATCH"
             color = "#eab308"
         else:
             action = "WAIT"
             color = "#6b7280"
 
-        return action, score, color, signals, entry_signals
+        return action, entry_score, confidence, color, signals, entry_signals
 
     def fetch_ticker_data(self, ticker_symbol, retries=3, delay=1):
         for attempt in range(retries):
@@ -1326,54 +1378,91 @@ class ContrarianEdgeApp(ctk.CTk):
                     text="Data unavailable", text_color="#6b7280"
                 )
 
-            signal_action, signal_score, signal_color, signals, entry_signals = (
-                self.calculate_signal_strength(
-                    ratio, rsi_value, macd_crossover, above_ma200
-                )
+            (
+                signal_action,
+                entry_score,
+                confidence,
+                signal_color,
+                signals,
+                entry_signals,
+            ) = self.calculate_enhanced_signal(
+                ratio,
+                vix_price,
+                rsi_value,
+                macd_crossover,
+                above_ma200,
+                spy_price,
+                ma200_value,
             )
 
             signal_icons = {
                 "STRONG BUY": "STRONG BUY",
                 "BUY": "BUY",
+                "MODERATE BUY": "MODERATE BUY",
                 "WATCH": "WATCH",
                 "WAIT": "WAIT",
             }
             display_action = signal_icons.get(signal_action, signal_action)
             self.signal_action.configure(text=display_action)
             self.signal_dot.configure(text_color=signal_color)
+
             self.signal_confidence.configure(
-                text=f"Entry Score: {signal_score}/100", text_color=signal_color
+                text=f"Entry Score: {entry_score}/100", text_color=signal_color
             )
             self.signal_details.configure(
-                text=f"{entry_signals}/4 entry signals active"
+                text=f"Confidence: {confidence}% | {entry_signals}/4 signals active"
             )
 
             try:
-                self.signal_bar.set(signal_score / 100.0)
+                self.signal_bar.set(entry_score / 100.0)
                 self.signal_bar.configure(progress_color=signal_color)
             except Exception:
                 pass
 
-            signal_descriptions = {
-                "STRONG BUY": "Extreme fear detected with strong technical confirmation. Prime S&P 500 ETF entry opportunity.",
-                "BUY": "Elevated fear with favorable technical setup. Good S&P 500 ETF entry opportunity.",
-                "WATCH": "Moderate conditions. Monitor for stronger S&P 500 entry signals to develop.",
-                "WAIT": "Insufficient fear/technical confirmation. Wait for better S&P 500 entry opportunity.",
-            }
-            self.signal_description.configure(
-                text=signal_descriptions.get(
-                    signal_action, "Analyzing market conditions..."
-                )
-            )
+            if signal_action == "STRONG BUY":
+                if confidence >= 80:
+                    signal_descriptions = "EXTREME FEAR + MAXIMUM CONFIDENCE - All signals aligned perfectly. Maximum allocation recommended for S&P 500 ETFs."
+                else:
+                    signal_descriptions = "EXTREME FEAR + STRONG CONFIRMATION - Prime contrarian opportunity with 4/4 signals active. High confidence entry."
+            elif signal_action == "BUY":
+                if confidence >= 75:
+                    signal_descriptions = "STRONG SETUP + HIGH CONFIDENCE - Excellent signal alignment. Consider 60-80% allocation to S&P 500 ETFs."
+                elif confidence >= 60:
+                    signal_descriptions = "ELEVATED FEAR + GOOD CONFIRMATION - Strong entry opportunity with solid technical backing."
+                else:
+                    signal_descriptions = "HIGH SCORE + MODERATE CONFIDENCE - Strong setup but some conflicting signals. Consider smaller position size."
+            elif signal_action == "MODERATE BUY":
+                if confidence >= 80:
+                    signal_descriptions = "MODERATE SCORE + HIGH CONFIDENCE - Lower entry score but excellent signal alignment. Conservative entry with room to add on weakness."
+                elif confidence >= 60:
+                    signal_descriptions = "DEVELOPING SETUP + GOOD ALIGNMENT - Contrarian conditions improving. Consider partial S&P 500 ETF position."
+                else:
+                    signal_descriptions = "MODERATE SETUP + MIXED SIGNALS - Some contrarian elements present but signals are conflicting. Monitor closely."
+            elif signal_action == "WATCH":
+                if confidence >= 70:
+                    signal_descriptions = "LOW SCORE + HIGH CONFIDENCE - Strong signal alignment but insufficient contrarian setup. Wait for fear levels to increase."
+                elif confidence >= 50:
+                    signal_descriptions = "MODERATE CONDITIONS + MODERATE ALIGNMENT - Mixed signals with moderate confidence. Monitor for stronger entry signals to develop."
+                else:
+                    signal_descriptions = "MODERATE CONDITIONS + LOW ALIGNMENT - Conflicting signals with low confidence. Wait for clearer market direction."
+            else:
+                if confidence >= 60:
+                    signal_descriptions = "LOW SCORE + HIGH CONFIDENCE - Strong signal alignment but no contrarian opportunity. Wait for fear spike."
+                elif confidence >= 40:
+                    signal_descriptions = "INSUFFICIENT SETUP + MODERATE ALIGNMENT - Some signals present but insufficient for entry. Wait for better contrarian setup."
+                else:
+                    signal_descriptions = "INSUFFICIENT SIGNALS + LOW ALIGNMENT - No clear contrarian opportunity. Wait for fear/technical confirmation to improve."
+            self.signal_description.configure(text=signal_descriptions)
 
-            print(f"\n=== CONTRARIAN LONG-ENTRY SIGNAL ===")
+            print(f"\n=== ENHANCED CONTRARIAN SIGNAL ===")
             print(f"Action: {signal_action}")
-            print(f"Entry Score: {signal_score}/100")
+            print(f"Entry Score: {entry_score}/100")
+            print(f"Confidence: {confidence}%")
             print(f"Active Entry Signals: {entry_signals}/4")
             print("Signal Breakdown:")
             for signal in signals:
                 print(f"  • {signal}")
-            print("=" * 40)
+            print("=" * 50)
 
             self.update_chart()
 
