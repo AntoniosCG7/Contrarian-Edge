@@ -4,9 +4,13 @@
 
 ## Overview
 
-Contrarian Edge generates actionable BUY or WAIT signals by detecting periods of excessive market fear (elevated VIX/VXV ratio) and confirming them with technical indicators. The system exclusively focuses on identifying long entry opportunities—no short or hedge recommendations.
+Contrarian Edge generates actionable BUY or WAIT signals by detecting periods of excessive market fear (elevated VIX/VXV ratio) and confirming them with technical indicators. The system exclusively focuses on identifying long entry opportunities for **S&P 500 exposure**—no short or hedge recommendations.
 
 **Core Philosophy:** _"Buy when fear peaks, wait when complacency reigns."_
+
+**What to Buy:** When you receive a BUY or STRONG BUY signal, consider purchasing S&P 500 ETFs such as SPY, VOO, IVV, or similar S&P 500 tracking funds.
+
+**Holding Strategy:** Hold positions for 10-20 days or until the VIX/VIX3M ratio returns near 1.0 (indicating fear has normalized). Monitor the ratio daily and consider taking profits when it drops below 0.95 (complacency zone).
 
 ## Key Features
 
@@ -26,12 +30,12 @@ Contrarian Edge generates actionable BUY or WAIT signals by detecting periods of
 
 Four signal states based on weighted scoring (0-100):
 
-| Signal            | Score  | Criteria                 | Interpretation                               |
-| ----------------- | ------ | ------------------------ | -------------------------------------------- |
-| ✅ **STRONG BUY** | 85-100 | 3-4 entry signals active | Extreme fear + strong technical confirmation |
-| 🟢 **BUY**        | 65-84  | 2+ entry signals active  | Elevated fear + favorable technical setup    |
-| ⚪ **WATCH**      | 40-64  | 1-2 signals              | Moderate conditions—monitor for development  |
-| ⚫ **WAIT**       | 0-39   | 0-1 signals              | Insufficient entry signals—patience required |
+| Signal            | Score  | Criteria                 | Interpretation                               | Action              |
+| ----------------- | ------ | ------------------------ | -------------------------------------------- | ------------------- |
+| ✅ **STRONG BUY** | 85-100 | 3-4 entry signals active | Extreme fear + strong technical confirmation | **Buy S&P 500 ETF** |
+| 🟢 **BUY**        | 65-84  | 2+ entry signals active  | Elevated fear + favorable technical setup    | **Buy S&P 500 ETF** |
+| ⚪ **WATCH**      | 40-64  | 1-2 signals              | Moderate conditions—monitor for development  | Monitor             |
+| ⚫ **WAIT**       | 0-39   | 0-1 signals              | Insufficient entry signals—patience required | Wait                |
 
 #### Entry Signal Components (X/4 Active)
 
@@ -48,6 +52,17 @@ Four signal states based on weighted scoring (0-100):
 - Optimized chart rendering (only updates when data changes)
 
 ## Strategy Logic
+
+### Complete Trading Strategy
+
+**Entry:** Buy S&P 500 ETFs on BUY/STRONG BUY signals  
+**Position Sizing:** Risk 1-3% of portfolio per trade (adjust based on signal strength)  
+**Holding Period:** 10-20 days or until VIX/VIX3M ratio normalizes  
+**Exit Signals:**
+
+- **Take Profits:** When ratio drops below 0.95 (complacency zone)
+- **Time Stop:** Exit after 20 days regardless of ratio
+- **Emergency Stop:** If S&P 500 drops >8% from entry (risk management)
 
 ### Entry Signal Matrix
 
@@ -82,10 +97,19 @@ Four signal states based on weighted scoring (0-100):
 
 ### Example Scenarios
 
-**✅ STRONG BUY (90/100):** Ratio 1.12 + RSI 28 + MACD Bullish + Above MA200 → 4/4 signals active  
-**🟢 BUY (75/100):** Ratio 1.06 + RSI 38 + MACD Neutral + Above MA200 → 3/4 signals active  
-**⚪ WATCH (50/100):** Ratio 0.97 + RSI 45 + MACD Bullish + Above MA200 → 2/4 signals active  
-**⚫ WAIT (20/100):** Ratio 0.88 + RSI 72 + MACD Bearish + Above MA200 → 1/4 signals active
+**✅ STRONG BUY (90/100):** Ratio 1.12 + RSI 28 + MACD Bullish + Above MA200 → 4/4 signals active → **Buy SPY/VOO**  
+**🟢 BUY (75/100):** Ratio 1.06 + RSI 38 + MACD Neutral + Above MA200 → 3/4 signals active → **Buy SPY/VOO**  
+**⚪ WATCH (50/100):** Ratio 0.97 + RSI 45 + MACD Bullish + Above MA200 → 2/4 signals active → Monitor  
+**⚫ WAIT (20/100):** Ratio 0.88 + RSI 72 + MACD Bearish + Above MA200 → 1/4 signals active → Wait
+
+### Example Trade Scenario
+
+**Day 1:** STRONG BUY signal (ratio 1.12) → Buy $10,000 of SPY at $450  
+**Day 5:** Ratio drops to 1.05 → Hold (still in fear zone)  
+**Day 12:** Ratio drops to 0.94 → **Take profits** (complacency zone reached)  
+**Result:** SPY at $465 (+3.3% gain) + fear normalization = successful contrarian trade
+
+**Alternative:** If ratio stays elevated >20 days, exit anyway (time stop)
 
 ## Technical Specifications
 
