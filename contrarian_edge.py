@@ -5,6 +5,9 @@ import threading
 from collections import deque
 import time
 import gc
+import concurrent.futures
+from functools import lru_cache
+import os
 
 _matplotlib_loaded = False
 
@@ -593,6 +596,12 @@ class ContrarianEdgeApp(ctk.CTk):
         self.chart_canvas = None
         self.last_chart_data = None
 
+        self.data_cache = {}
+        self.cache_timeout = 30
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
+
+        self.start_time = time.time()
+
         self.auto_refresh_enabled = True
         self.fetch_data()
         self.schedule_refresh()
@@ -637,8 +646,10 @@ class ContrarianEdgeApp(ctk.CTk):
         else:
             return "WAIT", "#6b7280"
 
-    def calculate_rsi(self, prices, period=14):
+    @lru_cache(maxsize=16)
+    def calculate_rsi(self, prices_tuple, period=14):
         try:
+            prices = list(prices_tuple)
             if len(prices) < period + 1:
                 return None
 
@@ -663,8 +674,10 @@ class ContrarianEdgeApp(ctk.CTk):
             print(f"Error calculating RSI: {e}")
             return None
 
-    def calculate_macd(self, prices):
+    @lru_cache(maxsize=16)
+    def calculate_macd(self, prices_tuple):
         try:
+            prices = list(prices_tuple)
             if len(prices) < 26:
                 return None, None
 
@@ -726,12 +739,6 @@ class ContrarianEdgeApp(ctk.CTk):
                 warnings.append(
                     f"S&P 500 {abs(price_vs_ma):.1f}% from 200-MA (unusual)"
                 )
-
-        if warnings:
-            print("\n=== DATA VALIDATION WARNINGS ===")
-            for warning in warnings:
-                print(f"  ⚠ {warning}")
-            print("=" * 40)
 
         return validation_passed
 
@@ -867,20 +874,27 @@ class ContrarianEdgeApp(ctk.CTk):
         return action, entry_score, confidence, color, signals, entry_signals
 
     def fetch_ticker_data(self, ticker_symbol, retries=3, delay=1):
+        cache_key = f"{ticker_symbol}_{int(time.time() // self.cache_timeout)}"
+        if cache_key in self.data_cache:
+            return self.data_cache[cache_key]
+
         for attempt in range(retries):
             try:
                 ticker = yf.Ticker(ticker_symbol)
                 data = ticker.history(period="5d")
                 if not data.empty and len(data) > 0:
+                    self.data_cache[cache_key] = data
+                    current_time = int(time.time() // self.cache_timeout)
+                    self.data_cache = {
+                        k: v
+                        for k, v in self.data_cache.items()
+                        if int(k.split("_")[-1]) >= current_time - 2
+                    }
                     return data
                 if attempt < retries - 1:
-                    print(f"Empty data for {ticker_symbol}, retrying in {delay}s...")
                     time.sleep(delay)
             except Exception as e:
                 if attempt < retries - 1:
-                    print(
-                        f"Error fetching {ticker_symbol} (attempt {attempt + 1}/{retries}): {e}"
-                    )
                     time.sleep(delay)
                 else:
                     raise
@@ -909,14 +923,13 @@ class ContrarianEdgeApp(ctk.CTk):
                     widget = self.chart_canvas.get_tk_widget()
                     if widget.winfo_exists():
                         widget.destroy()
-                except Exception as e:
-                    print(f"Error destroying old chart widget: {e}")
+                except Exception:
+                    pass
                 finally:
                     self.chart_canvas = None
                     gc.collect()
 
-        except Exception as e:
-            print(f"Error updating chart: {e}")
+        except Exception:
             return
 
         try:
@@ -935,13 +948,7 @@ class ContrarianEdgeApp(ctk.CTk):
             x_vals = list(range(len(ratios)))
 
             if len(ratios) == 0 or len(x_vals) == 0:
-                print("No data to plot")
                 return
-
-            print(f"\n=== CHART DATA ({len(ratios)} points) ===")
-            for i, (date, ratio) in enumerate(zip(dates[-10:], ratios[-10:])):
-                print(f"{date}: {ratio:.4f}")
-            print("=" * 40)
 
             ax.fill_between(
                 x_vals,
@@ -1033,8 +1040,8 @@ class ContrarianEdgeApp(ctk.CTk):
             canvas_widget.grid(row=1, column=0, padx=14, pady=(0, 14), sticky="nsew")
 
             plt.close(fig)
-        except Exception as e:
-            print(f"Error creating/rendering chart: {e}")
+        except Exception:
+            pass
 
     def fetch_data(self):
         try:
@@ -1053,51 +1060,33 @@ class ContrarianEdgeApp(ctk.CTk):
                     vix3m_hist = vix3m.history(start=start_date, end=end_date)
 
                     if not vix_hist.empty and not vix3m_hist.empty:
-                        print(f"\n=== LOADING HISTORICAL DATA ===")
-                        print(f"VIX history: {len(vix_hist)} days")
-                        print(f"VIX3M history: {len(vix3m_hist)} days")
-
                         vix_hist = vix_hist[["Close"]].copy()
                         vix3m_hist = vix3m_hist[["Close"]].copy()
-
                         vix_hist.index = vix_hist.index.date
                         vix3m_hist.index = vix3m_hist.index.date
-
                         common_dates = sorted(
                             set(vix_hist.index) & set(vix3m_hist.index)
                         )[-60:]
 
-                        print(f"Common dates: {len(common_dates)}")
-
-                        for i, date in enumerate(common_dates):
+                        for date in common_dates:
                             vix_val = vix_hist.loc[date, "Close"]
                             vix3m_val = vix3m_hist.loc[date, "Close"]
-
                             if vix_val > 0 and vix3m_val > 0:
                                 ratio_val = vix_val / vix3m_val
                                 self.ratio_history.append(ratio_val)
                                 self.ratio_dates.append(date)
-
-                                if i < 5 or i >= len(common_dates) - 5:
-                                    print(
-                                        f"  {date}: VIX={vix_val:.2f}, VIX3M={vix3m_val:.2f}, Ratio={ratio_val:.4f}"
-                                    )
-                                elif i == 5:
-                                    print(
-                                        f"  ... ({len(common_dates) - 10} more dates) ..."
-                                    )
-
-                        print(f"Loaded {len(self.ratio_history)} ratio data points")
-                        if len(self.ratio_dates) > 0:
-                            print(
-                                f"Date range: {self.ratio_dates[0]} to {self.ratio_dates[-1]}"
-                            )
-                        print("=" * 40)
                 except Exception as e:
                     print(f"Error loading historical data: {e}")
 
-            vix_data = self.fetch_ticker_data("^VIX")
-            vix3m_data = self.fetch_ticker_data("^VIX3M")
+            concurrent_start = time.time()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                vix_future = executor.submit(self.fetch_ticker_data, "^VIX")
+                vix3m_future = executor.submit(self.fetch_ticker_data, "^VIX3M")
+
+                vix_data = vix_future.result()
+                vix3m_data = vix3m_future.result()
+
+            concurrent_time = time.time() - concurrent_start
 
             vix_price = float(vix_data["Close"].iloc[-1])
             vix3m_price = float(vix3m_data["Close"].iloc[-1])
@@ -1111,13 +1100,6 @@ class ContrarianEdgeApp(ctk.CTk):
 
             ratio = vix_price / vix3m_price
 
-            print(f"\n=== DATA FETCH ===")
-            print(f"VIX: {vix_price:.2f}")
-            print(f"VIX3M: {vix3m_price:.2f}")
-            print(f"Ratio: {ratio:.4f}")
-            print(f"Date: {datetime.now().date()}")
-            print("=" * 40)
-
             spy_price = None
             rsi_value = None
             macd_line = None
@@ -1127,23 +1109,17 @@ class ContrarianEdgeApp(ctk.CTk):
             ma200_value = None
 
             try:
-                print("\n=== FETCHING S&P 500 DATA ===")
                 spy_data_full = yf.Ticker("^GSPC").history(period="1y")
-                print(f"S&P 500 data rows: {len(spy_data_full)}")
-
                 if not spy_data_full.empty and len(spy_data_full) > 0:
                     spy_price = float(spy_data_full["Close"].iloc[-1])
-                    print(f"S&P 500 Price: ${spy_price:.2f}")
-
                     if spy_price <= 0 or spy_price > 100000:
-                        print(f"Invalid S&P 500 price: {spy_price}")
                         spy_price = None
                     else:
                         prices_list = spy_data_full["Close"].tolist()
 
-                        rsi_value = self.calculate_rsi(prices_list, period=14)
-
-                        macd_line, signal_line = self.calculate_macd(prices_list)
+                        prices_tuple = tuple(prices_list)
+                        rsi_value = self.calculate_rsi(prices_tuple, period=14)
+                        macd_line, signal_line = self.calculate_macd(prices_tuple)
                         if macd_line is not None and signal_line is not None:
                             if macd_line > signal_line:
                                 macd_crossover = "bullish"
@@ -1154,45 +1130,12 @@ class ContrarianEdgeApp(ctk.CTk):
                             ma200_value = sum(prices_list[-200:]) / 200
                             above_ma200 = spy_price > ma200_value
 
-                        rsi_str = f"{rsi_value:.2f}" if rsi_value is not None else "N/A"
-                        ma200_str = (
-                            f"{ma200_value:.2f}" if ma200_value is not None else "N/A"
-                        )
-                        print(f"RSI (Wilder's Smoothing): {rsi_str}")
-                        print(f"MACD Crossover: {macd_crossover}")
-                        print(f"MA200: {ma200_str}, Above: {above_ma200}")
-
-                        print(f"\n=== TECHNICAL INDICATORS (Detailed) ===")
-                        print(f"Current S&P 500: ${spy_price:.2f}")
-                        print(
-                            f"Last 5 S&P 500 prices: {[f'${p:.2f}' for p in prices_list[-5:]]}"
-                        )
-                        if rsi_value is not None:
-                            print(f"RSI (14-day, Wilder's method): {rsi_value:.4f}")
-                        if macd_line is not None and signal_line is not None:
-                            macd_histogram = macd_line - signal_line
-                            print(f"MACD Line: {macd_line:.4f}")
-                            print(f"Signal Line: {signal_line:.4f}")
-                            print(f"MACD Histogram: {macd_histogram:.4f}")
-                        if ma200_value is not None:
-                            price_vs_ma_pct = (
-                                (spy_price - ma200_value) / ma200_value
-                            ) * 100
-                            print(f"200-Day MA: ${ma200_value:.2f}")
-                            print(f"Price vs MA200: {price_vs_ma_pct:+.2f}%")
-                        print("=" * 40)
-
                         self.validate_indicators(
                             spy_price, rsi_value, macd_line, signal_line, ma200_value
                         )
                 else:
-                    print("S&P 500 data is empty!")
                     spy_price = None
             except Exception as e:
-                print(f"ERROR fetching S&P 500 data: {e}")
-                import traceback
-
-                traceback.print_exc()
                 spy_price = None
 
             vix_prev = vix_data["Close"].iloc[-2] if len(vix_data) > 1 else vix_price
@@ -1222,23 +1165,10 @@ class ContrarianEdgeApp(ctk.CTk):
 
             self.current_ratio = ratio
 
-            if len(self.ratio_history) > 2:
-                recent_ratios = list(self.ratio_history)[-5:]
-                avg_ratio = sum(recent_ratios) / len(recent_ratios)
-                if abs(ratio - avg_ratio) > 0.15:
-                    print(f"WARNING: Unusual ratio spike detected!")
-                    print(f"  Current: {ratio:.4f}, Recent avg: {avg_ratio:.4f}")
-                    print(f"  This might indicate bad data or a major market event")
-
             today = datetime.now().date()
-
             if len(self.ratio_dates) > 0 and self.ratio_dates[-1] == today:
-                print(
-                    f"Updating today's ratio: {self.ratio_history[-1]:.4f} -> {ratio:.4f}"
-                )
                 self.ratio_history[-1] = ratio
             else:
-                print(f"Adding new day: {today} with ratio {ratio:.4f}")
                 self.ratio_history.append(ratio)
                 self.ratio_dates.append(today)
 
@@ -1454,16 +1384,6 @@ class ContrarianEdgeApp(ctk.CTk):
                     signal_descriptions = "INSUFFICIENT SIGNALS + LOW ALIGNMENT - No clear contrarian opportunity. Wait for fear/technical confirmation to improve."
             self.signal_description.configure(text=signal_descriptions)
 
-            print(f"\n=== ENHANCED CONTRARIAN SIGNAL ===")
-            print(f"Action: {signal_action}")
-            print(f"Entry Score: {entry_score}/100")
-            print(f"Confidence: {confidence}%")
-            print(f"Active Entry Signals: {entry_signals}/4")
-            print("Signal Breakdown:")
-            for signal in signals:
-                print(f"  • {signal}")
-            print("=" * 50)
-
             self.update_chart()
 
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1524,7 +1444,26 @@ class ContrarianEdgeApp(ctk.CTk):
 
         self.after(100, self.update_chart)
 
+    def cleanup(self):
+        if hasattr(self, "executor"):
+            self.executor.shutdown(wait=False)
+        if hasattr(self, "chart_canvas") and self.chart_canvas is not None:
+            try:
+                widget = self.chart_canvas.get_tk_widget()
+                if widget.winfo_exists():
+                    widget.destroy()
+            except:
+                pass
+        self.data_cache.clear()
+        gc.collect()
+
+    def __del__(self):
+        self.cleanup()
+
 
 if __name__ == "__main__":
     app = ContrarianEdgeApp()
-    app.mainloop()
+    try:
+        app.mainloop()
+    finally:
+        app.cleanup()
