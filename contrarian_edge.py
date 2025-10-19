@@ -9,8 +9,194 @@ import concurrent.futures
 from functools import lru_cache
 import winsound
 import os
+import requests
+import json
+from pathlib import Path
 
 _matplotlib_loaded = False
+
+
+class SecureConfigManager:
+    def __init__(self):
+        self.config_file = Path("contrarian_edge_config.json")
+        self.credentials_file = Path("bot_credentials.json")
+        self.config = self.load_config()
+
+    def load_config(self):
+        default_config = {
+            "telegram": {"enabled": False, "bot_token": "", "chat_id": ""},
+            "notifications": {"sound_enabled": True, "toast_enabled": True},
+        }
+
+        if self.config_file.exists():
+            try:
+                with open(self.config_file, "r") as f:
+                    config = json.load(f)
+                return {**default_config, **config}
+            except Exception as e:
+                print(f"Error loading config: {e}")
+                return default_config
+        return default_config
+
+    def save_config(self):
+        try:
+            with open(self.config_file, "w") as f:
+                json.dump(self.config, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error saving config: {e}")
+            return False
+
+    def get_shared_bot_credentials(self):
+        if self.credentials_file.exists():
+            try:
+                with open(self.credentials_file, "r") as f:
+                    creds = json.load(f)
+                return creds.get("bot_token", ""), creds.get("chat_id", "")
+            except Exception as e:
+                print(f"Error loading bot credentials: {e}")
+        return "", ""
+
+    def get_telegram_token(self):
+        env_token = os.getenv("CONTRARIAN_EDGE_TELEGRAM_TOKEN")
+        if env_token:
+            return env_token
+
+        shared_token, _ = self.get_shared_bot_credentials()
+        if shared_token:
+            return shared_token
+
+        return self.config.get("telegram", {}).get("bot_token", "")
+
+    def get_telegram_chat_id(self):
+        env_chat_id = os.getenv("CONTRARIAN_EDGE_TELEGRAM_CHAT_ID")
+        if env_chat_id:
+            return env_chat_id
+
+        _, shared_chat_id = self.get_shared_bot_credentials()
+        if shared_chat_id:
+            return shared_chat_id
+
+        return self.config.get("telegram", {}).get("chat_id", "")
+
+    def is_telegram_enabled(self):
+        return self.config.get("telegram", {}).get("enabled", False)
+
+    def update_telegram_config(self, bot_token=None, chat_id=None, enabled=None):
+        if "telegram" not in self.config:
+            self.config["telegram"] = {}
+
+        if bot_token is not None:
+            self.config["telegram"]["bot_token"] = bot_token
+        if chat_id is not None:
+            self.config["telegram"]["chat_id"] = chat_id
+        if enabled is not None:
+            self.config["telegram"]["enabled"] = enabled
+
+        return self.save_config()
+
+    def get_notification_settings(self):
+        return self.config.get(
+            "notifications", {"sound_enabled": True, "toast_enabled": True}
+        )
+
+    def update_notification_settings(self, sound_enabled=None, toast_enabled=None):
+        if "notifications" not in self.config:
+            self.config["notifications"] = {}
+
+        if sound_enabled is not None:
+            self.config["notifications"]["sound_enabled"] = sound_enabled
+        if toast_enabled is not None:
+            self.config["notifications"]["toast_enabled"] = toast_enabled
+
+        return self.save_config()
+
+
+class TelegramNotificationSystem:
+    def __init__(self, parent):
+        self.parent = parent
+        self.bot_token = None
+        self.chat_id = None
+        self.enabled = False
+        self.last_signal = None
+        self.api_url = None
+
+    def configure(self, bot_token, chat_id, enabled=True):
+        self.bot_token = bot_token
+        self.chat_id = chat_id
+        self.enabled = enabled and bot_token and chat_id
+        if self.enabled:
+            self.api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+    def send_notification(
+        self,
+        signal_type,
+        confidence,
+        entry_score,
+        ratio,
+        vix_price,
+        vix3m_price,
+        spy_price,
+    ):
+        if not self.enabled or not self.api_url:
+            return
+
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            if signal_type == "STRONG BUY":
+                emoji = "🚨"
+                urgency = "EXTREME ALERT"
+            elif signal_type == "BUY":
+                emoji = "📢"
+                urgency = "BUY ALERT"
+            else:
+                return
+
+            message = f"""{emoji} {urgency} {emoji}
+
+🎯 **Signal:** {signal_type}
+📊 **Confidence:** {confidence}%
+🏆 **Entry Score:** {entry_score}/100
+📈 **VIX/VIX3M Ratio:** {ratio:.4f}
+📉 **VIX:** {vix_price:.2f}
+📉 **VIX3M:** {vix3m_price:.2f}
+💰 **S&P 500:** ${spy_price:.2f}
+
+⏰ **Time:** {timestamp}
+
+🔔 Consider buying S&P 500 ETFs (SPY, VOO, IVV) when conditions align."""
+
+            payload = {
+                "chat_id": self.chat_id,
+                "text": message,
+                "parse_mode": "Markdown",
+            }
+
+            response = requests.post(self.api_url, data=payload, timeout=10)
+            response.raise_for_status()
+
+        except Exception as e:
+            print(f"Telegram notification error: {e}")
+
+    def test_connection(self):
+        if not self.enabled or not self.api_url:
+            return False, "Telegram not configured"
+
+        try:
+            test_message = "🔔 Contrarian Edge - Test notification successful!"
+            payload = {
+                "chat_id": self.chat_id,
+                "text": test_message,
+                "parse_mode": "Markdown",
+            }
+
+            response = requests.post(self.api_url, data=payload, timeout=10)
+            response.raise_for_status()
+            return True, "Test notification sent successfully!"
+
+        except Exception as e:
+            return False, f"Test failed: {str(e)}"
 
 
 class NotificationSystem:
@@ -20,6 +206,7 @@ class NotificationSystem:
         self.toast_enabled = True
         self.last_signal = None
         self.toast_window = None
+        self.telegram = TelegramNotificationSystem(parent)
 
         self.sound_type = "file"
         self.custom_sound_file = None
@@ -177,13 +364,33 @@ class NotificationSystem:
             finally:
                 self.toast_window = None
 
-    def check_signal_change(self, new_signal, confidence):
+    def check_signal_change(
+        self,
+        new_signal,
+        confidence,
+        entry_score=None,
+        ratio=None,
+        vix_price=None,
+        vix3m_price=None,
+        spy_price=None,
+    ):
         if new_signal != self.last_signal:
             self.last_signal = new_signal
 
             if new_signal in ["BUY", "STRONG BUY"]:
                 self.play_notification_sound()
                 self.show_toast_notification(new_signal, confidence)
+
+                if entry_score and ratio and vix_price and vix3m_price and spy_price:
+                    self.telegram.send_notification(
+                        new_signal,
+                        confidence,
+                        entry_score,
+                        ratio,
+                        vix_price,
+                        vix3m_price,
+                        spy_price,
+                    )
 
 
 class SmoothScrollableFrame(ctk.CTkScrollableFrame):
@@ -830,6 +1037,89 @@ class ContrarianEdgeApp(ctk.CTk):
         )
         self.brand_tagline.grid(row=1, column=0, columnspan=2, pady=(6, 0))
 
+        telegram_section = ctk.CTkLabel(
+            self.main_container,
+            text="TELEGRAM NOTIFICATIONS",
+            font=ctk.CTkFont(family="Bahnschrift", size=17, weight="bold"),
+        )
+        telegram_section.grid(
+            row=14, column=0, columnspan=3, pady=(0, 10), sticky="w", padx=20
+        )
+
+        self.telegram_frame = ctk.CTkFrame(
+            self.main_container, corner_radius=10, border_width=2
+        )
+        self.telegram_frame.grid(
+            row=15, column=0, columnspan=3, padx=20, pady=(0, 12), sticky="ew"
+        )
+        self.telegram_frame.grid_columnconfigure(0, weight=1)
+
+        self.telegram_header = ctk.CTkLabel(
+            self.telegram_frame,
+            text="Telegram Bot Settings",
+            font=ctk.CTkFont(family="Bahnschrift", size=15, weight="bold"),
+        )
+        self.telegram_header.grid(row=0, column=0, padx=18, pady=(18, 6), sticky="w")
+
+        self.telegram_enabled_var = ctk.BooleanVar(value=False)
+        self.telegram_enabled_checkbox = ctk.CTkCheckBox(
+            self.telegram_frame,
+            text="Enable Telegram Notifications",
+            variable=self.telegram_enabled_var,
+            command=self.toggle_telegram_notifications,
+            font=ctk.CTkFont(family="Bahnschrift", size=13),
+        )
+        self.telegram_enabled_checkbox.grid(
+            row=1, column=0, padx=18, pady=(6, 6), sticky="w"
+        )
+
+        self.telegram_info = ctk.CTkLabel(
+            self.telegram_frame,
+            text="Get real-time buy signals delivered to your phone via Telegram",
+            font=ctk.CTkFont(family="Bahnschrift", size=12),
+            text_color=("#6b7280", "#9ca3af"),
+        )
+        self.telegram_info.grid(row=2, column=0, padx=18, pady=(6, 6), sticky="w")
+
+        telegram_buttons_frame = ctk.CTkFrame(
+            self.telegram_frame, fg_color="transparent"
+        )
+        telegram_buttons_frame.grid(row=3, column=0, padx=18, pady=(6, 6), sticky="ew")
+        telegram_buttons_frame.grid_columnconfigure(0, weight=1)
+        telegram_buttons_frame.grid_columnconfigure(1, weight=1)
+
+        self.test_telegram_button = ctk.CTkButton(
+            telegram_buttons_frame,
+            text="Test Connection",
+            command=self.test_telegram_connection,
+            font=ctk.CTkFont(family="Bahnschrift", size=12, weight="bold"),
+            height=32,
+            corner_radius=6,
+            fg_color="#3b82f6",
+            hover_color="#2563eb",
+        )
+        self.test_telegram_button.grid(row=0, column=0, padx=(0, 6), sticky="ew")
+
+        self.save_telegram_button = ctk.CTkButton(
+            telegram_buttons_frame,
+            text="Save Settings",
+            command=self.save_telegram_settings,
+            font=ctk.CTkFont(family="Bahnschrift", size=12, weight="bold"),
+            height=32,
+            corner_radius=6,
+            fg_color="#22c55e",
+            hover_color="#16a34a",
+        )
+        self.save_telegram_button.grid(row=0, column=1, padx=(6, 0), sticky="ew")
+
+        self.telegram_status = ctk.CTkLabel(
+            self.telegram_frame,
+            text="Ready to receive buy signals via Telegram",
+            font=ctk.CTkFont(family="Bahnschrift", size=12),
+            text_color=("#6b7280", "#9ca3af"),
+        )
+        self.telegram_status.grid(row=4, column=0, padx=18, pady=(6, 18), sticky="w")
+
         self.current_ratio = None
         self.previous_values = {}
         self.ratio_history = deque(maxlen=60)
@@ -844,9 +1134,11 @@ class ContrarianEdgeApp(ctk.CTk):
 
         self.start_time = time.time()
 
+        self.config_manager = SecureConfigManager()
         self.notifications = NotificationSystem(self)
         self.notifications.set_custom_sound("resources/buy_signal.wav")
 
+        self.load_saved_settings()
         self.auto_refresh_enabled = True
         self.fetch_data()
         self.schedule_refresh()
@@ -1581,7 +1873,15 @@ class ContrarianEdgeApp(ctk.CTk):
             self.signal_action.configure(text=display_action)
             self.signal_dot.configure(text_color=signal_color)
 
-            self.notifications.check_signal_change(signal_action, confidence)
+            self.notifications.check_signal_change(
+                signal_action,
+                confidence,
+                entry_score,
+                ratio,
+                vix_price,
+                vix3m_price,
+                spy_price,
+            )
 
             self.signal_confidence.configure(
                 text=f"Entry Score: {entry_score}/100", text_color=signal_color
@@ -1690,6 +1990,92 @@ class ContrarianEdgeApp(ctk.CTk):
             )
 
         self.after(100, self.update_chart)
+
+    def load_saved_settings(self):
+        telegram_token = self.config_manager.get_telegram_token()
+        telegram_chat_id = self.config_manager.get_telegram_chat_id()
+        telegram_enabled = self.config_manager.is_telegram_enabled()
+
+        if telegram_token and telegram_chat_id:
+            self.telegram_enabled_var.set(telegram_enabled)
+
+            if telegram_enabled:
+                self.notifications.telegram.configure(
+                    telegram_token, telegram_chat_id, True
+                )
+                self.telegram_status.configure(
+                    text="Telegram notifications enabled",
+                    text_color="#22c55e",
+                )
+            else:
+                self.telegram_status.configure(
+                    text="Telegram notifications disabled", text_color="#6b7280"
+                )
+        else:
+            self.telegram_status.configure(
+                text="Telegram bot not configured - contact administrator",
+                text_color="#ef4444",
+            )
+
+    def toggle_telegram_notifications(self):
+        enabled = self.telegram_enabled_var.get()
+        if enabled:
+            self.telegram_status.configure(
+                text="Telegram notifications enabled - configure bot token and chat ID",
+                text_color="#22c55e",
+            )
+        else:
+            self.telegram_status.configure(
+                text="Telegram notifications disabled", text_color="#6b7280"
+            )
+
+    def test_telegram_connection(self):
+        bot_token = self.config_manager.get_telegram_token()
+        chat_id = self.config_manager.get_telegram_chat_id()
+
+        if not bot_token or not chat_id:
+            self.telegram_status.configure(
+                text="Telegram bot not configured - contact administrator",
+                text_color="#ef4444",
+            )
+            return
+
+        self.notifications.telegram.configure(bot_token, chat_id, True)
+        success, message = self.notifications.telegram.test_connection()
+
+        if success:
+            self.telegram_status.configure(text=message, text_color="#22c55e")
+        else:
+            self.telegram_status.configure(text=message, text_color="#ef4444")
+
+    def save_telegram_settings(self):
+        enabled = self.telegram_enabled_var.get()
+        bot_token = self.config_manager.get_telegram_token()
+        chat_id = self.config_manager.get_telegram_chat_id()
+
+        if enabled and (not bot_token or not chat_id):
+            self.telegram_status.configure(
+                text="Telegram bot not configured - contact administrator",
+                text_color="#ef4444",
+            )
+            return
+
+        success = self.config_manager.update_telegram_config(enabled=enabled)
+
+        if success:
+            if enabled:
+                self.notifications.telegram.configure(bot_token, chat_id, enabled)
+                self.telegram_status.configure(
+                    text="Telegram notifications enabled", text_color="#22c55e"
+                )
+            else:
+                self.telegram_status.configure(
+                    text="Telegram notifications disabled", text_color="#6b7280"
+                )
+        else:
+            self.telegram_status.configure(
+                text="Error saving settings", text_color="#ef4444"
+            )
 
     def cleanup(self):
         if hasattr(self, "executor"):
