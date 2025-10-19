@@ -18,7 +18,7 @@ class ContrarianMonitor:
         self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
         if not self.bot_token or not self.chat_id:
-            creds_file = Path("bot_credentials.json")
+            creds_file = Path("config/bot_credentials.json")
             if creds_file.exists():
                 try:
                     with open(creds_file, "r") as f:

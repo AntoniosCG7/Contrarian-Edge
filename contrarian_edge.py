@@ -18,8 +18,8 @@ _matplotlib_loaded = False
 
 class SecureConfigManager:
     def __init__(self):
-        self.config_file = Path("contrarian_edge_config.json")
-        self.credentials_file = Path("bot_credentials.json")
+        self.config_file = Path("config/contrarian_edge_config.json")
+        self.credentials_file = Path("config/bot_credentials.json")
         self.config = self.load_config()
 
     def load_config(self):
