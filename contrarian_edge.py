@@ -24,7 +24,7 @@ class SecureConfigManager:
 
     def load_config(self):
         default_config = {
-            "telegram": {"enabled": False, "bot_token": "", "chat_id": ""},
+            "telegram": {"enabled": False},
             "notifications": {"sound_enabled": True, "toast_enabled": True},
         }
 
@@ -82,14 +82,10 @@ class SecureConfigManager:
     def is_telegram_enabled(self):
         return self.config.get("telegram", {}).get("enabled", False)
 
-    def update_telegram_config(self, bot_token=None, chat_id=None, enabled=None):
+    def update_telegram_config(self, enabled=None):
         if "telegram" not in self.config:
             self.config["telegram"] = {}
 
-        if bot_token is not None:
-            self.config["telegram"]["bot_token"] = bot_token
-        if chat_id is not None:
-            self.config["telegram"]["chat_id"] = chat_id
         if enabled is not None:
             self.config["telegram"]["enabled"] = enabled
 
@@ -995,15 +991,15 @@ class ContrarianEdgeApp(ctk.CTk):
         )
         self.chart_header.grid(row=0, column=0, padx=18, pady=(18, 10), sticky="w")
 
-        self.footer_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        self.footer_frame.grid(
+        self.buttons_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
+        self.buttons_frame.grid(
             row=13, column=0, columnspan=3, padx=20, pady=(0, 20), sticky="ew"
         )
-        self.footer_frame.grid_columnconfigure(0, weight=3)
-        self.footer_frame.grid_columnconfigure(1, weight=1)
+        self.buttons_frame.grid_columnconfigure(0, weight=3)
+        self.buttons_frame.grid_columnconfigure(1, weight=1)
 
         self.refresh_button = ctk.CTkButton(
-            self.footer_frame,
+            self.buttons_frame,
             text="Refresh Now",
             command=self.manual_refresh,
             font=ctk.CTkFont(family="Bahnschrift", size=13, weight="bold"),
@@ -1015,7 +1011,7 @@ class ContrarianEdgeApp(ctk.CTk):
         self.refresh_button.grid(row=0, column=0, padx=(0, 6), sticky="ew")
 
         self.theme_button = ctk.CTkButton(
-            self.footer_frame,
+            self.buttons_frame,
             text="Theme: Dark",
             command=self.toggle_theme,
             font=ctk.CTkFont(family="Bahnschrift", size=13, weight="bold"),
@@ -1029,17 +1025,17 @@ class ContrarianEdgeApp(ctk.CTk):
         )
         self.theme_button.grid(row=0, column=1, padx=(6, 0), sticky="ew")
 
-        self.brand_tagline = ctk.CTkLabel(
-            self.footer_frame,
+        self.footer_text = ctk.CTkLabel(
+            self.main_container,
             text="Contrarian Edge © 2025 — Turning Fear Into Opportunity",
             font=ctk.CTkFont(family="Bahnschrift", size=11, slant="italic"),
             text_color=("#6b7280", "#9ca3af"),
         )
-        self.brand_tagline.grid(row=1, column=0, columnspan=2, pady=(6, 0))
+        self.footer_text.grid(row=16, column=0, columnspan=3, pady=(0, 20), sticky="ew")
 
         telegram_section = ctk.CTkLabel(
             self.main_container,
-            text="TELEGRAM NOTIFICATIONS",
+            text="24/7 TELEGRAM MONITORING",
             font=ctk.CTkFont(family="Bahnschrift", size=17, weight="bold"),
         )
         telegram_section.grid(
@@ -1050,53 +1046,49 @@ class ContrarianEdgeApp(ctk.CTk):
             self.main_container, corner_radius=10, border_width=2
         )
         self.telegram_frame.grid(
-            row=15, column=0, columnspan=3, padx=20, pady=(0, 12), sticky="ew"
+            row=15, column=0, columnspan=3, padx=20, pady=(0, 20), sticky="ew"
         )
         self.telegram_frame.grid_columnconfigure(0, weight=1)
-
-        self.telegram_header = ctk.CTkLabel(
-            self.telegram_frame,
-            text="Telegram Bot Settings",
-            font=ctk.CTkFont(family="Bahnschrift", size=15, weight="bold"),
-        )
-        self.telegram_header.grid(row=0, column=0, padx=18, pady=(18, 6), sticky="w")
 
         self.telegram_enabled_var = ctk.BooleanVar(value=False)
         self.telegram_enabled_checkbox = ctk.CTkCheckBox(
             self.telegram_frame,
-            text="Enable Telegram Notifications",
+            text="Enable 24/7 Telegram Notifications",
             variable=self.telegram_enabled_var,
             command=self.toggle_telegram_notifications,
             font=ctk.CTkFont(family="Bahnschrift", size=13),
         )
         self.telegram_enabled_checkbox.grid(
-            row=1, column=0, padx=18, pady=(6, 6), sticky="w"
+            row=0, column=0, padx=18, pady=(18, 6), sticky="w"
         )
 
         self.telegram_info = ctk.CTkLabel(
             self.telegram_frame,
-            text="Get real-time buy signals delivered to your phone via Telegram",
+            text="Get buy signals 24/7 even when the app is closed! Just enable notifications and join our shared bot - no setup required!",
             font=ctk.CTkFont(family="Bahnschrift", size=12),
             text_color=("#6b7280", "#9ca3af"),
         )
-        self.telegram_info.grid(row=2, column=0, padx=18, pady=(6, 6), sticky="w")
+        self.telegram_info.grid(row=1, column=0, padx=18, pady=(6, 6), sticky="w")
 
         telegram_buttons_frame = ctk.CTkFrame(
             self.telegram_frame, fg_color="transparent"
         )
-        telegram_buttons_frame.grid(row=3, column=0, padx=18, pady=(6, 6), sticky="ew")
+        telegram_buttons_frame.grid(
+            row=2, column=0, padx=18, pady=(12, 12), sticky="ew"
+        )
         telegram_buttons_frame.grid_columnconfigure(0, weight=1)
         telegram_buttons_frame.grid_columnconfigure(1, weight=1)
 
         self.test_telegram_button = ctk.CTkButton(
             telegram_buttons_frame,
-            text="Test Connection",
-            command=self.test_telegram_connection,
+            text="Join Bot",
+            command=self.join_telegram_bot,
             font=ctk.CTkFont(family="Bahnschrift", size=12, weight="bold"),
             height=32,
             corner_radius=6,
-            fg_color="#3b82f6",
-            hover_color="#2563eb",
+            fg_color="#6b7280",
+            hover_color="#4b5563",
+            state="disabled",
         )
         self.test_telegram_button.grid(row=0, column=0, padx=(0, 6), sticky="ew")
 
@@ -1114,11 +1106,11 @@ class ContrarianEdgeApp(ctk.CTk):
 
         self.telegram_status = ctk.CTkLabel(
             self.telegram_frame,
-            text="Ready to receive buy signals via Telegram",
+            text="Ready to enable 24/7 monitoring - just check the box above!",
             font=ctk.CTkFont(family="Bahnschrift", size=12),
             text_color=("#6b7280", "#9ca3af"),
         )
-        self.telegram_status.grid(row=4, column=0, padx=18, pady=(6, 18), sticky="w")
+        self.telegram_status.grid(row=3, column=0, padx=18, pady=(6, 20), sticky="w")
 
         self.current_ratio = None
         self.previous_values = {}
@@ -1992,85 +1984,80 @@ class ContrarianEdgeApp(ctk.CTk):
         self.after(100, self.update_chart)
 
     def load_saved_settings(self):
-        telegram_token = self.config_manager.get_telegram_token()
-        telegram_chat_id = self.config_manager.get_telegram_chat_id()
         telegram_enabled = self.config_manager.is_telegram_enabled()
+        self.telegram_enabled_var.set(telegram_enabled)
 
-        if telegram_token and telegram_chat_id:
-            self.telegram_enabled_var.set(telegram_enabled)
-
-            if telegram_enabled:
-                self.notifications.telegram.configure(
-                    telegram_token, telegram_chat_id, True
-                )
-                self.telegram_status.configure(
-                    text="Telegram notifications enabled",
-                    text_color="#22c55e",
-                )
-            else:
-                self.telegram_status.configure(
-                    text="Telegram notifications disabled", text_color="#6b7280"
-                )
+        if telegram_enabled:
+            self.test_telegram_button.configure(
+                state="normal",
+                fg_color="#3b82f6",
+                hover_color="#2563eb",
+            )
+            self.telegram_status.configure(
+                text="24/7 monitoring enabled! Join the bot above to receive notifications!",
+                text_color="#22c55e",
+            )
         else:
             self.telegram_status.configure(
-                text="Telegram bot not configured - contact administrator",
-                text_color="#ef4444",
+                text="Ready to enable 24/7 monitoring - just check the box above!",
+                text_color="#6b7280",
             )
 
     def toggle_telegram_notifications(self):
         enabled = self.telegram_enabled_var.get()
         if enabled:
+            self.test_telegram_button.configure(
+                state="normal",
+                fg_color="#3b82f6",
+                hover_color="#2563eb",
+            )
             self.telegram_status.configure(
-                text="Telegram notifications enabled - configure bot token and chat ID",
-                text_color="#22c55e",
+                text="Click 'Join Bot' to get started with 24/7 notifications!",
+                text_color="#3b82f6",
             )
         else:
+            self.test_telegram_button.configure(
+                state="disabled",
+                fg_color="#6b7280",
+                hover_color="#4b5563",
+            )
             self.telegram_status.configure(
-                text="Telegram notifications disabled", text_color="#6b7280"
+                text="24/7 monitoring disabled", text_color="#6b7280"
             )
 
-    def test_telegram_connection(self):
-        bot_token = self.config_manager.get_telegram_token()
-        chat_id = self.config_manager.get_telegram_chat_id()
+    def join_telegram_bot(self):
+        import webbrowser
 
-        if not bot_token or not chat_id:
+        bot_username = "ContrarianEdgeBot"
+        telegram_url = f"https://t.me/{bot_username}"
+
+        try:
+            webbrowser.open(telegram_url)
             self.telegram_status.configure(
-                text="Telegram bot not configured - contact administrator",
+                text="Opening Telegram bot... Once joined, you'll receive notifications even when the app is closed!",
+                text_color="#3b82f6",
+            )
+        except Exception as e:
+            self.telegram_status.configure(
+                text=f"Could not open Telegram: {str(e)}",
                 text_color="#ef4444",
             )
-            return
-
-        self.notifications.telegram.configure(bot_token, chat_id, True)
-        success, message = self.notifications.telegram.test_connection()
-
-        if success:
-            self.telegram_status.configure(text=message, text_color="#22c55e")
-        else:
-            self.telegram_status.configure(text=message, text_color="#ef4444")
 
     def save_telegram_settings(self):
         enabled = self.telegram_enabled_var.get()
-        bot_token = self.config_manager.get_telegram_token()
-        chat_id = self.config_manager.get_telegram_chat_id()
-
-        if enabled and (not bot_token or not chat_id):
-            self.telegram_status.configure(
-                text="Telegram bot not configured - contact administrator",
-                text_color="#ef4444",
-            )
-            return
 
         success = self.config_manager.update_telegram_config(enabled=enabled)
 
         if success:
             if enabled:
-                self.notifications.telegram.configure(bot_token, chat_id, enabled)
                 self.telegram_status.configure(
-                    text="Telegram notifications enabled", text_color="#22c55e"
+                    text="24/7 monitoring enabled! Join the bot above to receive notifications!",
+                    text_color="#22c55e",
                 )
             else:
                 self.telegram_status.configure(
-                    text="Telegram notifications disabled", text_color="#6b7280"
+                    text="Settings saved - 24/7 monitoring disabled",
+                    text_color="#6b7280",
                 )
         else:
             self.telegram_status.configure(
