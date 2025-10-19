@@ -7,8 +7,183 @@ import time
 import gc
 import concurrent.futures
 from functools import lru_cache
+import winsound
+import os
 
 _matplotlib_loaded = False
+
+
+class NotificationSystem:
+    def __init__(self, parent):
+        self.parent = parent
+        self.sound_enabled = True
+        self.toast_enabled = True
+        self.last_signal = None
+        self.toast_window = None
+
+        self.sound_type = "file"
+        self.custom_sound_file = None
+
+    def play_notification_sound(self):
+        if not self.sound_enabled:
+            return
+
+        try:
+            if self.custom_sound_file and os.path.exists(self.custom_sound_file):
+                winsound.PlaySound(
+                    self.custom_sound_file, winsound.SND_FILENAME | winsound.SND_ASYNC
+                )
+            else:
+                winsound.MessageBeep(winsound.MB_ICONINFORMATION)
+        except Exception as e:
+            print(f"Error playing notification sound: {e}")
+            try:
+                print("\a")
+            except:
+                pass
+
+    def set_custom_sound(self, file_path):
+        if os.path.exists(file_path):
+            self.custom_sound_file = file_path
+
+    def show_toast_notification(self, signal_type, confidence):
+        if not self.toast_enabled or self.toast_window is not None:
+            return
+
+        try:
+            self.toast_window = ctk.CTkToplevel(self.parent)
+            self.toast_window.title("")
+            self.toast_window.geometry("350x100")
+            self.toast_window.attributes("-topmost", True)
+            self.toast_window.attributes("-toolwindow", True)
+            self.toast_window.overrideredirect(True)
+
+            self.toast_window.transient(self.parent)
+
+            self.toast_window.configure(
+                bg="#2b2b2b" if ctk.get_appearance_mode() == "Dark" else "#ffffff"
+            )
+
+            try:
+                main_x = self.parent.winfo_rootx()
+                main_y = self.parent.winfo_rooty()
+                main_width = self.parent.winfo_width()
+                main_height = self.parent.winfo_height()
+
+                toast_width = 350
+                toast_height = 100
+                center_x = main_x + (main_width - toast_width) // 2
+                center_y = main_y + (main_height - toast_height) // 2
+
+                self.toast_window.geometry(
+                    f"{toast_width}x{toast_height}+{center_x}+{center_y}"
+                )
+            except Exception as e:
+                print(f"Toast positioning error: {e}")
+                self.toast_window.geometry("300x80+100+100")
+
+            toast_frame = ctk.CTkFrame(self.toast_window, corner_radius=8)
+            toast_frame.pack(fill="both", expand=True, padx=5, pady=5)
+
+            icon_text = "🔔" if signal_type == "STRONG BUY" else "📢"
+            signal_color = (
+                "#22c55e" if signal_type in ["BUY", "STRONG BUY"] else "#eab308"
+            )
+
+            ctk.CTkLabel(
+                toast_frame,
+                text=f"{icon_text} {signal_type} Signal",
+                font=ctk.CTkFont(family="Bahnschrift", size=18, weight="bold"),
+                text_color=signal_color,
+            ).pack(pady=(12, 4))
+
+            ctk.CTkLabel(
+                toast_frame,
+                text=f"Confidence: {confidence}%",
+                font=ctk.CTkFont(family="Bahnschrift", size=14),
+                text_color=("#6b7280", "#9ca3af"),
+            ).pack(pady=(0, 12))
+
+            self.toast_window.attributes("-alpha", 0.0)
+            self.fade_in_toast()
+
+            self.bind_window_events()
+
+            self.parent.after(4000, self.close_toast)
+
+        except Exception as e:
+            print(f"Error showing toast notification: {e}")
+
+    def fade_in_toast(self):
+        try:
+            current_alpha = self.toast_window.attributes("-alpha")
+            if current_alpha < 1.0:
+                new_alpha = min(1.0, current_alpha + 0.1)
+                self.toast_window.attributes("-alpha", new_alpha)
+                self.parent.after(50, self.fade_in_toast)
+        except:
+            pass
+
+    def bind_window_events(self):
+        if self.toast_window is None:
+            return
+
+        try:
+            self.parent.bind("<Configure>", self.on_window_move)
+        except:
+            pass
+
+    def on_window_move(self, event):
+        if self.toast_window is None or event.widget != self.parent:
+            return
+
+        try:
+            if (
+                event.width == self.parent.winfo_width()
+                and event.height == self.parent.winfo_height()
+            ):
+                self.update_toast_position()
+        except:
+            pass
+
+    def update_toast_position(self):
+        if self.toast_window is None:
+            return
+
+        try:
+            main_x = self.parent.winfo_rootx()
+            main_y = self.parent.winfo_rooty()
+            main_width = self.parent.winfo_width()
+            main_height = self.parent.winfo_height()
+
+            toast_width = 350
+            toast_height = 100
+            center_x = main_x + (main_width - toast_width) // 2
+            center_y = main_y + (main_height - toast_height) // 2
+
+            self.toast_window.geometry(
+                f"{toast_width}x{toast_height}+{center_x}+{center_y}"
+            )
+        except:
+            pass
+
+    def close_toast(self):
+        if self.toast_window is not None:
+            try:
+                self.parent.unbind("<Configure>")
+                self.toast_window.destroy()
+            except:
+                pass
+            finally:
+                self.toast_window = None
+
+    def check_signal_change(self, new_signal, confidence):
+        if new_signal != self.last_signal:
+            self.last_signal = new_signal
+
+            if new_signal in ["BUY", "STRONG BUY"]:
+                self.play_notification_sound()
+                self.show_toast_notification(new_signal, confidence)
 
 
 class SmoothScrollableFrame(ctk.CTkScrollableFrame):
@@ -668,6 +843,9 @@ class ContrarianEdgeApp(ctk.CTk):
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
         self.start_time = time.time()
+
+        self.notifications = NotificationSystem(self)
+        self.notifications.set_custom_sound("resources/buy_signal.wav")
 
         self.auto_refresh_enabled = True
         self.fetch_data()
@@ -1403,6 +1581,8 @@ class ContrarianEdgeApp(ctk.CTk):
             self.signal_action.configure(text=display_action)
             self.signal_dot.configure(text_color=signal_color)
 
+            self.notifications.check_signal_change(signal_action, confidence)
+
             self.signal_confidence.configure(
                 text=f"Entry Score: {entry_score}/100", text_color=signal_color
             )
@@ -1521,6 +1701,8 @@ class ContrarianEdgeApp(ctk.CTk):
                     widget.destroy()
             except:
                 pass
+        if hasattr(self, "notifications"):
+            self.notifications.close_toast()
         self.data_cache.clear()
         gc.collect()
 
