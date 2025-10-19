@@ -1,3 +1,6 @@
 # GitHub Actions logs
 *.log
 monitor.log
+
+# Config
+contrarian_edge_config.json
