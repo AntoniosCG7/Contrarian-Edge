@@ -18,18 +18,9 @@ class ContrarianMonitor:
         self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
         if not self.bot_token or not self.chat_id:
-            creds_file = Path("config/bot_credentials.json")
-            if creds_file.exists():
-                try:
-                    with open(creds_file, "r") as f:
-                        creds = json.load(f)
-                    self.bot_token = creds.get("bot_token", "")
-                    self.chat_id = creds.get("chat_id", "")
-                except Exception as e:
-                    print(f"Error loading credentials: {e}")
-
-        if not self.bot_token or not self.chat_id:
-            raise ValueError("Telegram credentials not found!")
+            raise ValueError(
+                "Telegram credentials not found! Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables."
+            )
 
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 

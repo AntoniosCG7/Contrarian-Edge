@@ -19,7 +19,6 @@ _matplotlib_loaded = False
 class SecureConfigManager:
     def __init__(self):
         self.config_file = Path("config/contrarian_edge_config.json")
-        self.credentials_file = Path("config/bot_credentials.json")
         self.config = self.load_config()
 
     def load_config(self):
@@ -46,38 +45,6 @@ class SecureConfigManager:
         except Exception as e:
             print(f"Error saving config: {e}")
             return False
-
-    def get_shared_bot_credentials(self):
-        if self.credentials_file.exists():
-            try:
-                with open(self.credentials_file, "r") as f:
-                    creds = json.load(f)
-                return creds.get("bot_token", ""), creds.get("chat_id", "")
-            except Exception as e:
-                print(f"Error loading bot credentials: {e}")
-        return "", ""
-
-    def get_telegram_token(self):
-        env_token = os.getenv("CONTRARIAN_EDGE_TELEGRAM_TOKEN")
-        if env_token:
-            return env_token
-
-        shared_token, _ = self.get_shared_bot_credentials()
-        if shared_token:
-            return shared_token
-
-        return self.config.get("telegram", {}).get("bot_token", "")
-
-    def get_telegram_chat_id(self):
-        env_chat_id = os.getenv("CONTRARIAN_EDGE_TELEGRAM_CHAT_ID")
-        if env_chat_id:
-            return env_chat_id
-
-        _, shared_chat_id = self.get_shared_bot_credentials()
-        if shared_chat_id:
-            return shared_chat_id
-
-        return self.config.get("telegram", {}).get("chat_id", "")
 
     def is_telegram_enabled(self):
         return self.config.get("telegram", {}).get("enabled", False)
