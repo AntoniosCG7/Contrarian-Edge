@@ -7,9 +7,76 @@ import time
 import gc
 import concurrent.futures
 from functools import lru_cache
-import os
 
 _matplotlib_loaded = False
+
+
+class SmoothScrollableFrame(ctk.CTkScrollableFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._scroll_queue = []
+        self._scroll_animation_id = None
+        self.setup_smooth_scrolling()
+
+    def setup_smooth_scrolling(self):
+        self.master.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.master.bind_all("<Button-4>", self._on_mousewheel)
+        self.master.bind_all("<Button-5>", self._on_mousewheel)
+        self._scrollbar.configure(width=12)
+
+    def _on_mousewheel(self, event):
+        try:
+            x, y = self.master.winfo_pointerxy()
+            widget_x = self.winfo_rootx()
+            widget_y = self.winfo_rooty()
+            widget_width = self.winfo_width()
+            widget_height = self.winfo_height()
+
+            if (
+                widget_x <= x <= widget_x + widget_width
+                and widget_y <= y <= widget_y + widget_height
+            ):
+
+                if event.delta:
+                    total_scroll = -int(event.delta / 1.5)
+                else:
+                    total_scroll = 30 if event.num == 5 else -30
+
+                self._scroll_queue.append(total_scroll)
+
+                if self._scroll_animation_id is None:
+                    self._animate_scroll()
+
+                return "break"
+            else:
+                return None
+
+        except Exception as e:
+            print(f"Scroll error: {e}")
+            return None
+
+    def _animate_scroll(self):
+        if not self._scroll_queue:
+            self._scroll_animation_id = None
+            return
+
+        total = sum(self._scroll_queue)
+        self._scroll_queue.clear()
+
+        step_size = 6
+        steps = abs(total) // step_size
+        direction = 1 if total > 0 else -1
+
+        if steps > 0:
+            self._parent_canvas.yview_scroll(direction * step_size, "units")
+
+            remaining = total - (direction * step_size)
+            if abs(remaining) >= step_size:
+                self._scroll_queue.append(remaining)
+
+            self._scroll_animation_id = self.master.after(5, self._animate_scroll)
+        else:
+            self._scroll_animation_id = None
 
 
 def load_matplotlib():
@@ -39,7 +106,7 @@ class ContrarianEdgeApp(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        self.main_container = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.main_container = SmoothScrollableFrame(self, fg_color="transparent")
         self.main_container.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         self.main_container.grid_columnconfigure(
             (0, 1, 2), weight=1, uniform="cards", minsize=220
