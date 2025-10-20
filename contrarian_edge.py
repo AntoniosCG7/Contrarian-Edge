@@ -9,6 +9,7 @@ import concurrent.futures
 from functools import lru_cache
 import winsound
 import os
+import sys
 import requests
 import json
 from pathlib import Path
@@ -18,7 +19,13 @@ _matplotlib_loaded = False
 
 class SecureConfigManager:
     def __init__(self):
-        self.config_file = Path("config/contrarian_edge_config.json")
+        if getattr(sys, "frozen", False):
+            exe_dir = Path(sys.executable).parent
+            self.config_file = exe_dir / "config" / "contrarian_edge_config.json"
+        else:
+            self.config_file = Path("dist/config/contrarian_edge_config.json")
+
+        self.config_file.parent.mkdir(parents=True, exist_ok=True)
         self.config = self.load_config()
 
     def load_config(self):
@@ -39,11 +46,14 @@ class SecureConfigManager:
 
     def save_config(self):
         try:
+            # Ensure the directory exists
+            self.config_file.parent.mkdir(parents=True, exist_ok=True)
+
             with open(self.config_file, "w") as f:
                 json.dump(self.config, f, indent=2)
             return True
         except Exception as e:
-            print(f"Error saving config: {e}")
+            print(f"Error saving config to {self.config_file}: {e}")
             return False
 
     def is_telegram_enabled(self):
