@@ -66,6 +66,12 @@ Contrarian Edge generates actionable BUY or WAIT signals by detecting periods of
 - Robust error handling with retry logic
 - Optimized chart rendering (only updates when data changes)
 
+### 24/7 Telegram Notifications
+
+Get real-time BUY and STRONG BUY alerts sent directly to your phone via Telegram. Simply join the bot to receive instant notifications when contrarian opportunities arise.
+
+_Notifications run every 5 minutes during market hours (9 AM - 4 PM EST, Monday-Friday)_
+
 ## Strategy Logic
 
 ### Complete Trading Strategy
