@@ -74,9 +74,14 @@ _Notifications run every 5 minutes during market hours (9 AM - 4 PM EST, Monday-
 
 ## Screenshots
 
+### Dark Mode
+
 ![](/screenshots/dark_mode_1.png)
 ![](/screenshots/dark_mode_2.png)
 ![](/screenshots/dark_mode_3.png)
+
+### Light Mode
+
 ![](/screenshots/light_mode_1.png)
 ![](/screenshots/light_mode_2.png)
 ![](/screenshots/light_mode_3.png)
