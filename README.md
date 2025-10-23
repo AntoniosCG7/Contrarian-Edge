@@ -72,6 +72,15 @@ Get real-time BUY and STRONG BUY alerts sent directly to your phone via Telegram
 
 _Notifications run every 5 minutes during market hours (9 AM - 4 PM EST, Monday-Friday)_
 
+## Screenshots
+
+![](/screenshots/dark_mode_1.png)
+![](/screenshots/dark_mode_2.png)
+![](/screenshots/dark_mode_3.png)
+![](/screenshots/light_mode_1.png)
+![](/screenshots/light_mode_2.png)
+![](/screenshots/light_mode_3.png)
+
 ## Strategy Logic
 
 ### Complete Trading Strategy
